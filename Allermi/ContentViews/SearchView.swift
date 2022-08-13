@@ -7,9 +7,9 @@
 
 import SwiftUI
 import CodeScanner
-import SwiftSpeech
 import Alamofire
 import SwiftyJSON
+import AVKit
 
 struct SuperTextField: View {
     var placeholder: Text
@@ -30,62 +30,100 @@ struct SuperTextField: View {
     }
 }
 
+struct DevelopersView: View {
+    var player = AVPlayer()
+    var body: some View {
+        ZStack {
+            VideoPlayer(player: player)
+            VStack {
+                Capsule()
+                        .fill(.white)
+                        .frame(width: 50, height: 4)
+                        .padding(10)
+                Spacer()
+            }
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            if player.currentItem == nil {
+                let item = AVPlayerItem(url: URL(string: "http://drive.google.com/uc?export=view&id=1_M4aysgitgG7aNj13pK66Vm9CIk9MeDf")!)
+                player.replaceCurrentItem(with: item)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
+                player.play()
+            })
+        }
+    }
+}
+
+struct SearchOption: View {
+    let icon: String
+    let title: String
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title2)
+            Spacer()
+            Text(title)
+        }
+        .padding(20)
+        .foregroundColor(Color(.systemBackground))
+        .frame(height: 40)
+        .frame(width: 130)
+        .background(Color.accentColor)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding([.leading, .trailing], 3)
+    }
+}
 struct SearchView: View {
     @Environment(\.colorScheme) var colorScheme
     @State var text: String = ""
     @State var search = false
     @State var barcodeSearch = false
-    @State var voiceSearch = false
-    let icons = ["link", "location.fill", "barcode", "mic.fill"]
-    let titles = ["링크 검색", "위치 탐색", "바코드", "음성 인식"]
+    @State var developers = false
     var body: some View {
         VStack {
             Image("Logo2")
                 .resizable()
                 .scaledToFit()
-                .padding(EdgeInsets(top: 0, leading: 70, bottom: 45, trailing: 70))
-            SuperTextField(placeholder: Text("식품명 또는 식당 상호명을 입력하세요"), text: $text)
+                .frame(width: 270)
+                .padding(.bottom, 50)
+            SuperTextField(placeholder: Text("식품명을 입력해 검색하세요"), text: $text)
                 .frame(height: 60)
                 .multilineTextAlignment(.center)
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
-                .padding(EdgeInsets(top: 0, leading: 20, bottom: 15, trailing: 20))
-                .onSubmit{ search.toggle() }
+                .padding([.leading, .trailing], 20)
+                .padding(.bottom, 15)
+                .onSubmit{
+                    if text.uppercased() == "DEVELOPERS" {
+                        developers.toggle()
+                    } else {
+                        if !text.isEmpty {
+                            search.toggle()
+                        }
+                    }
+                }
             NavigationLink(destination: SearchedView(text: text), isActive: $search) { EmptyView() }
             HStack {
-                ForEach(1..<5, id: \.self) { idx in
-                    if idx != 1 { Spacer() }
-                    VStack {
-                        Button(action: {
-                            switch idx {
-                                case 1: print("a")
-                                case 2: LocationSearchView()
-                            case 3: barcodeSearch.toggle()
-                            default: voiceSearch.toggle()
-                            }
-                        }) {
-                            Image(systemName: icons[idx-1])
-                                .font(.system(size: 27))
-                                .foregroundColor(Color(UIColor.systemBackground))
-                        }
-                            .frame(width: 55, height: 55)
-                            .background(Color("LightColor"))
-                            .clipShape(Circle())
-                        Text(titles[idx-1])
-                            .font(.footnote)
-                            .foregroundColor(.gray)
-                    }.frame(width: 80)
+                Button(action: { barcodeSearch.toggle() }) {
+                    SearchOption(icon: "location.fill", title: "위치")
+                }
+                Button(action: { barcodeSearch.toggle() }) {
+                    SearchOption(icon: "barcode", title: "바코드")
                 }
             }
-            .padding([.leading, .trailing], 15)
         }
+        .navigationTitle("")
         .sheet(isPresented: $barcodeSearch) {
-            CodeScannerView(codeTypes: [.ean13, .ean8, .upce], simulatedData: "8801037018332", completion: handleScan)
+            CodeScannerView(codeTypes: [.ean13, .ean8, .upce],
+                            simulatedData: "8801037018332",
+                            completion: handleScan)
                 .overlay(ScanOverlayView())
                 .ignoresSafeArea()
         }
-        .sheet(isPresented: $voiceSearch) {
-            SpeechView()
+        .sheet(isPresented: $developers) {
+            DevelopersView()
         }
     }
     func handleScan(result: Result<ScanResult, ScanError>) {
@@ -95,7 +133,7 @@ struct SearchView: View {
                 let details = result.string
                 AF.request("http://openapi.foodsafetykorea.go.kr/api/90b5037cda5d44e7bc84/C005/json/1/5/BAR_CD=\(details)", method: .get, encoding: URLEncoding.default).responseData { response in
                     text = JSON(response.data!)["C005"]["row"][0]["PRDLST_REPORT_NO"].string ?? ""
-                    if(!text.isEmpty) { search.toggle() }
+                    if !text.isEmpty { search.toggle() }
                 }
             case .failure(let error):
                 print("Scanning failed: \(error.localizedDescription)")
@@ -223,19 +261,6 @@ struct ScanOverlayView: View {
         path.addLine(to: CGPoint(x: right, y: bottom - (cornerRadius / 2.0) - cornerLength))
 
         return path
-    }
-}
-
-struct SpeechView: View {
-    var body: some View {
-        Group {
-            SwiftSpeech.Demos.Basic(localeIdentifier: "ko_KR")
-            SwiftSpeech.Demos.Colors()
-            SwiftSpeech.Demos.List(localeIdentifier: "ko_KR")
-        }
-        .onAppear {
-            SwiftSpeech.requestSpeechRecognitionAuthorization()
-        }
     }
 }
 

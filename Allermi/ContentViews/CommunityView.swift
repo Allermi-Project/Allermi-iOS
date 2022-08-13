@@ -82,15 +82,20 @@ struct CommunityView: View {
         .navigationBarItems(trailing: Button(action: {
             
         }) {
-            Image(systemName: "plus")
+            Image(systemName: "square.and.pencil")
                 .foregroundColor(.accentColor)
         })
         .refreshable { }
     }
 }
 
+struct CommunityWriteView: View {
+    var body: some View {
+        Text("a")
+    }
+}
 struct CommunityView_Previews: PreviewProvider {
     static var previews: some View {
-        CommunityView()//.preferredColorScheme(.dark)
+        CommunityWriteView()//.preferredColorScheme(.dark)
     }
 }
